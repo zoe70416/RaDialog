@@ -11,7 +11,9 @@ from tqdm import tqdm
 
 # local folder import
 import section_parser as sp
-from local_config import PATH_TO_MIMIC_CXR
+#from local_config import PATH_TO_MIMIC_CXR
+
+PATH_TO_MIMIC_CXR = '/vast/wh2405/physionet.org/files/'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--reports_path',
