@@ -12,7 +12,8 @@ model:
   num_query_token: 32
   max_txt_len: 256
   load_finetuned: True
-  finetuned: "pretraining/outputs/stage1_pt_instruct_blip_origlr_img448_0501_123455/checkpoint_13.pth" #"pretraining/outputs/stage1_pt_instruct_blip_origlr_img448/checkpoint_4.pth" 
+  # finetuned: "pretraining/outputs/stage1_pt_instruct_blip_origlr_img448/checkpoint_4.pth" 
+  fine-tuned: "pretraining/outputs/stage1_pt_instruct_blip_origlr_img448_0501_123455/checkpoint_13.pth"
 
 datasets:
   mimic_cxr: # name of the dataset builder
