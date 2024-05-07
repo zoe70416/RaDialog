@@ -5,8 +5,11 @@ from tqdm import tqdm
 import argparse
 
 def get_impressions_from_csv(path):
-        df = pd.read_csv(path, header=None)
-        imp = df[0]
+        df = pd.read_csv(path, header=None) #for generating chexbert label from pred
+        imp = df[0] #for generating chexbert label from pred
+        
+        # df = pd.read_csv(path) 
+        # imp = df['Report Impression'] 
         # if nan
         imp = imp.fillna('')
         imp = imp.str.strip()

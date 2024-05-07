@@ -9,9 +9,56 @@ from models.bert_labeler import bert_labeler
 from bert_tokenizer import tokenize
 from transformers import BertTokenizer
 from collections import OrderedDict
-from datasets.unlabeled_dataset import UnlabeledDataset
+# from datasets.unlabeled_dataset import UnlabeledDataset
+# from chexbert.src.datasets.unlabeled_dataset import UnlabeledDataset
 from constants import *
 from tqdm import tqdm
+
+####
+import torch
+import pandas as pd
+import numpy as np
+from transformers import BertTokenizer
+import bert_tokenizer
+from torch.utils.data import Dataset, DataLoader
+
+class UnlabeledDataset(Dataset):
+        """The dataset to contain report impressions without any labels."""
+        
+        def __init__(self, csv_path):
+                """ Initialize the dataset object
+                @param csv_path (string): path to the csv file containing rhe reports. It
+                                          should have a column named "Report Impression"
+                """
+                tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+                impressions = bert_tokenizer.get_impressions_from_csv(csv_path)
+                self.encoded_imp = bert_tokenizer.tokenize(impressions, tokenizer)
+
+        def __len__(self):
+                """Compute the length of the dataset
+
+                @return (int): size of the dataframe
+                """
+                return len(self.encoded_imp)
+
+        def __getitem__(self, idx):
+                """ Functionality to index into the dataset
+                @param idx (int): Integer index into the dataset
+
+                @return (dictionary): Has keys 'imp', 'label' and 'len'. The value of 'imp' is
+                                      a LongTensor of an encoded impression. The value of 'label'
+                                      is a LongTensor containing the labels and 'the value of
+                                      'len' is an integer representing the length of imp's value
+                """
+                if torch.is_tensor(idx):
+                        idx = idx.tolist()
+                imp = self.encoded_imp[idx]
+                imp = torch.LongTensor(imp)
+                return {"imp": imp, "len": imp.shape[0]}
+
+
+
+#####
 
 def collate_fn_no_labels(sample_list):
     """Custom collate function to pad reports in each batch to the max len,
@@ -66,15 +113,15 @@ def label(checkpoint_path, csv_path):
         print("Using", torch.cuda.device_count(), "GPUs!")
         model = nn.DataParallel(model, device_ids=list(range(torch.cuda.device_count()))) #to utilize multiple GPU's
         model = model.to(device)
-        checkpoint = torch.load(checkpoint_path)
-        model.load_state_dict(checkpoint['model_state_dict'])
+        checkpoint = torch.load(checkpoint_path) 
+        model.load_state_dict(checkpoint['model_state_dict'],strict=False) #pass strict = False cuz of Missing key(s) in state_dict
     else:
         checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
         new_state_dict = OrderedDict()
         for k, v in checkpoint['model_state_dict'].items():
             name = k[7:] # remove `module.`
             new_state_dict[name] = v
-        model.load_state_dict(new_state_dict)
+        model.load_state_dict(new_state_dict,strict=False)#pass strict = False cuz of Missing key(s) in state_dict
         
     was_training = model.training
     model.eval()
@@ -115,20 +162,21 @@ def save_preds(y_pred, csv_path, out_path):
     y_pred = y_pred.T
     
     df = pd.DataFrame(y_pred, columns=CONDITIONS)
-    findings = pd.read_csv(csv_path, header=None)[0]
+    findings = pd.read_csv(csv_path, header=None)['Report Impression']
+    # findings = pd.read_csv(csv_path)['Report Impression']
 
     # dicom was used for labeling training set, but is not available for labeling predictions
     # dicom_ids = pd.read_csv(csv_path)['dicom_id']
 
     # df['dicom_id'] = dicom_ids.tolist()
     df['findings'] = findings.tolist()
-    new_cols = ['findings'] +CONDITIONS #['dicom_id']
+    new_cols = ['findings'] +CONDITIONS  #dicom_id
+    # new_cols = ['dicom_id'] + CONDITIONS 
     df = df[new_cols]
 
     df.replace(0, np.nan, inplace=True) #blank class is NaN
     df.replace(3, -1, inplace=True)     #uncertain class is -1
     df.replace(2, 0, inplace=True)      #negative class is 0 
-    
     df.to_csv(out_path, index=False)
 
 if __name__ == '__main__':
