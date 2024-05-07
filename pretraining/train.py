@@ -39,7 +39,7 @@ from model.lavis.models import *
 from model.lavis.processors import *
 from model.lavis.runners import *
 from model.lavis.tasks import *
-from model.lavis.data.ReportDataset import MIMIC_CXR_Dataset
+from model.lavis.data.ReportDataset import MIMIC_CXR_Dataset, IU_CXR_Dataset
 from local_config import PATH_TO_MIMIC_CXR
 
 
@@ -107,15 +107,26 @@ def main():
 
     # my report dataset
     datasets = {}
-    datasets['mimic_cxr'] = {}
-    datasets['mimic_cxr']['train'] = MIMIC_CXR_Dataset(vis_processor=None, text_processor=None, vis_root=f"{PATH_TO_MIMIC_CXR}/mimic-cxr-jpg/2.0.0",
+    # datasets['mimic_cxr'] = {}
+    # datasets['mimic_cxr']['train'] = MIMIC_CXR_Dataset(vis_processor=None, text_processor=None, vis_root=f"{PATH_TO_MIMIC_CXR}/mimic-cxr-jpg/2.0.0",
+    #                                                    split="train", cfg=cfg, truncate=None)
+    # datasets['mimic_cxr']['train_val'] = MIMIC_CXR_Dataset(vis_processor=None, text_processor=None,
+    #                                                        vis_root=f"{PATH_TO_MIMIC_CXR}/mimic-cxr-jpg/2.0.0", split="train", cfg=cfg,
+    #                                                        truncate=1000)  # 1000
+    # datasets['mimic_cxr']['val'] = MIMIC_CXR_Dataset(vis_processor=None, text_processor=None, vis_root=f"{PATH_TO_MIMIC_CXR}/mimic-cxr-jpg/2.0.0",
+    #                                                  split="validate", cfg=cfg, truncate=None)
+    # datasets['mimic_cxr']['test'] = MIMIC_CXR_Dataset(vis_processor=None, text_processor=None, vis_root=f"{PATH_TO_MIMIC_CXR}/mimic-cxr-jpg/2.0.0",
+    #                                                   split="test", cfg=cfg, truncate=None)
+
+    datasets['iu_cxr'] = {}
+    datasets['iu_cxr']['train'] = IU_CXR_Dataset(vis_processor=None, text_processor=None, vis_root=f"/vast/wh2405/NLMCXR_png",
                                                        split="train", cfg=cfg, truncate=None)
-    datasets['mimic_cxr']['train_val'] = MIMIC_CXR_Dataset(vis_processor=None, text_processor=None,
-                                                           vis_root=f"{PATH_TO_MIMIC_CXR}/mimic-cxr-jpg/2.0.0", split="train", cfg=cfg,
-                                                           truncate=1000)  # 1000
-    datasets['mimic_cxr']['val'] = MIMIC_CXR_Dataset(vis_processor=None, text_processor=None, vis_root=f"{PATH_TO_MIMIC_CXR}/mimic-cxr-jpg/2.0.0",
+    datasets['iu_cxr']['train_val'] = IU_CXR_Dataset(vis_processor=None, text_processor=None,
+                                                           vis_root=f"/vast/wh2405/NLMCXR_png", split="train", cfg=cfg,
+                                                           truncate=None)  # 1000
+    datasets['iu_cxr']['val'] = IU_CXR_Dataset(vis_processor=None, text_processor=None, vis_root=f"/vast/wh2405/NLMCXR_png",
                                                      split="validate", cfg=cfg, truncate=None)
-    datasets['mimic_cxr']['test'] = MIMIC_CXR_Dataset(vis_processor=None, text_processor=None, vis_root=f"{PATH_TO_MIMIC_CXR}/mimic-cxr-jpg/2.0.0",
+    datasets['iu_cxr']['test'] = IU_CXR_Dataset(vis_processor=None, text_processor=None, vis_root=f"/vast/wh2405/NLMCXR_png",
                                                       split="test", cfg=cfg, truncate=None)
 
     model = task.build_model(cfg)
@@ -136,36 +147,57 @@ def main():
         model.cuda()
         model.eval()
 
-        dataloader = DataLoader(datasets['mimic_cxr']['test'], batch_size=256, shuffle=False, num_workers=cfg.run_cfg.num_workers)
+        # dataloader = DataLoader(datasets['mimic_cxr']['test'], batch_size=256, shuffle=False, num_workers=cfg.run_cfg.num_workers)
+        dataloader = DataLoader(datasets['iu_cxr']['test'], batch_size=4, shuffle=False, num_workers=cfg.run_cfg.num_workers)
         embeddings = {}
+        # for i, batch in enumerate(tqdm(dataloader)):
+        #     qformer_embs, _ = model.forward_image(batch['image'].cuda())
+        #     for j, id in enumerate(batch['image_id']):
+        #         dicom = datasets['mimic_cxr']['test'].id_to_dicom[id.item()]
+        #         embeddings[dicom] = qformer_embs[j].cpu().detach().numpy()
+
         for i, batch in enumerate(tqdm(dataloader)):
             qformer_embs, _ = model.forward_image(batch['image'].cuda())
             for j, id in enumerate(batch['image_id']):
-                dicom = datasets['mimic_cxr']['test'].id_to_dicom[id.item()]
+                dicom = datasets['iu_cxr']['test'].id_to_dicom[id.item()]
                 embeddings[dicom] = qformer_embs[j].cpu().detach().numpy()
 
         # save embeddings
         with open(f"pretraining/embs/{cfg.run_cfg.run_name}_embeddings_test.pkl", "wb") as f:
             pickle.dump(embeddings, f)
 
-        dataloader = DataLoader(datasets['mimic_cxr']['val'], batch_size=256, shuffle=False, num_workers=cfg.run_cfg.num_workers)
+        # dataloader = DataLoader(datasets['mimic_cxr']['val'], batch_size=256, shuffle=False, num_workers=cfg.run_cfg.num_workers)
+        dataloader = DataLoader(datasets['iu_cxr']['val'], batch_size=4, shuffle=False, num_workers=cfg.run_cfg.num_workers)
         embeddings = {}
+        # for i, batch in enumerate(tqdm(dataloader)):
+        #     qformer_embs, _ = model.forward_image(batch['image'].cuda())
+        #     for j, id in enumerate(batch['image_id']):
+        #         dicom = datasets['mimic_cxr']['val'].id_to_dicom[id.item()]
+        #         embeddings[dicom] = qformer_embs[j].cpu().detach().numpy()
+
         for i, batch in enumerate(tqdm(dataloader)):
             qformer_embs, _ = model.forward_image(batch['image'].cuda())
             for j, id in enumerate(batch['image_id']):
-                dicom = datasets['mimic_cxr']['val'].id_to_dicom[id.item()]
+                dicom = datasets['iu_cxr']['val'].id_to_dicom[id.item()]
                 embeddings[dicom] = qformer_embs[j].cpu().detach().numpy()
 
         # save embeddings
         with open(f"pretraining/embs/{cfg.run_cfg.run_name}_embeddings_val.pkl", "wb") as f:
             pickle.dump(embeddings, f)
 
-        dataloader = DataLoader(datasets['mimic_cxr']['train'], batch_size=256, shuffle=False, num_workers=cfg.run_cfg.num_workers)
+        # dataloader = DataLoader(datasets['mimic_cxr']['train'], batch_size=256, shuffle=False, num_workers=cfg.run_cfg.num_workers)
+        dataloader = DataLoader(datasets['iu_cxr']['train'], batch_size=4, shuffle=False, num_workers=cfg.run_cfg.num_workers)
         embeddings = {}
+        # for i, batch in enumerate(tqdm(dataloader)):
+        #     qformer_embs, _ = model.forward_image(batch['image'].cuda())
+        #     for j, id in enumerate(batch['image_id']):
+        #         dicom = datasets['mimic_cxr']['train'].id_to_dicom[id.item()]
+        #         embeddings[dicom] = qformer_embs[j].cpu().detach().numpy()
+
         for i, batch in enumerate(tqdm(dataloader)):
             qformer_embs, _ = model.forward_image(batch['image'].cuda())
             for j, id in enumerate(batch['image_id']):
-                dicom = datasets['mimic_cxr']['train'].id_to_dicom[id.item()]
+                dicom = datasets['iu_cxr']['train'].id_to_dicom[id.item()]
                 embeddings[dicom] = qformer_embs[j].cpu().detach().numpy()
 
         # save embeddings
